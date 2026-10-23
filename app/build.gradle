@@ -1,0 +1,31 @@
+plugins { id "com.android.application" }
+
+def props = new Properties()
+file("../app.properties").withInputStream { props.load(it) }
+
+android {
+    namespace "com.kfdxplus.firetv"
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.kfdxplus.firetv"
+        minSdk 22
+        targetSdk 34
+        versionCode Integer.parseInt(System.getenv("GITHUB_RUN_NUMBER") ?: "1")
+        versionName "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
+        buildConfigField "String", "APP_URL", "\"${props.getProperty('APP_URL')}\""
+    }
+    buildFeatures { buildConfig true }
+    signingConfigs {
+        // same key every build, so new versions install right over the old one
+        release {
+            storeFile file("../kfdx-plus.keystore")
+            storePassword "kfdxplus"
+            keyAlias "kfdxplus"
+            keyPassword "kfdxplus"
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.release }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
