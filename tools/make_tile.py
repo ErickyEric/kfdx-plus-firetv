@@ -5,7 +5,9 @@ re-centers the logo, saves the 1280x720 master tile, and writes the launcher ico
 banner at every screen density.
 """
 import sys
+import os
 from PIL import Image
+os.makedirs("art", exist_ok=True)
 
 src = Image.open(sys.argv[1]).convert("RGB")
 W, H = src.size
@@ -24,6 +26,9 @@ for y in range(720):
 mask = Image.eval(src.convert("L"), lambda v: 255 if v < 245 else 0)
 box = mask.getbbox()
 logo = src.crop(box)
+if logo.width > 882 or logo.height > 448:          # shrink to fit Amazon's center safe area
+    s = min(882 / logo.width, 448 / logo.height)
+    logo = logo.resize((int(logo.width * s), int(logo.height * s)), Image.LANCZOS)
 tile = Image.new("RGB", (1280, 720), (255, 255, 255))
 tile.paste(logo, ((1280 - logo.width) // 2, (720 - logo.height) // 2))
 print("logo size", logo.size, "-> safe area 882x448:", logo.width <= 882 and logo.height <= 448)
