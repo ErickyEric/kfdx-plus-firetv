@@ -1,0 +1,24 @@
+name: Import Fire TV tile from Higgsfield
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Higgsfield image URL"
+        required: true
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - run: pip install pillow
+      - run: curl -fsSL -o /tmp/tile_src.png "${{ inputs.url }}"
+      - run: python3 tools/make_tile.py /tmp/tile_src.png
+      - name: Commit the new icon set
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add art app/src/main/res
+          git commit -m "Fire TV tile from Higgsfield (1280x720, centered in safe area)" || echo "no changes"
+          git push
