@@ -42,9 +42,20 @@ public class MainActivity extends Activity {
         " if(!document.getElementById('sheet').hidden&&openShow){showSheet(openShow.slug,false);}else{render();}" +
         " var el=(sel&&document.querySelector((document.getElementById('sheet').hidden?'':'#sheet ')+sel))||document.querySelector('[data-ep]');" +
         " if(el&&typeof focusEl==='function')focusEl(el);};" +
+        // "Check for app updates" button + build number at the bottom of the home screen
+        "var f=document.querySelector('.foot');if(f&&!document.getElementById('kfdxUpd')){" +
+        " var st=document.createElement('style');st.textContent='#kfdxUpd::before{display:none}#kfdxUpd{margin-top:1.2vw}';document.head.appendChild(st);" +
+        " var b=document.createElement('button');b.id='kfdxUpd';b.className='btn';b.textContent='Check for app updates';" +
+        " b.onclick=function(){KFDXNative.checkUpdate();};" +
+        " var v=document.createElement('div');v.style.marginTop='.6vw';v.textContent='KFDX+ for Fire TV \u00b7 build '+KFDXNative.version();" +
+        " f.appendChild(document.createElement('br'));f.appendChild(b);f.appendChild(v);}" +
         "})();";
 
+    private Updater updater;
+
     public class Bridge {
+        @JavascriptInterface public void checkUpdate() { runOnUiThread(() -> updater.check(false)); }
+        @JavascriptInterface public String version() { return String.valueOf(Updater.currentBuild()); }
         @JavascriptInterface public void play(final String cfg) {
             runOnUiThread(() -> {
                 Intent i = new Intent(MainActivity.this, PlayerActivity.class);
@@ -94,6 +105,9 @@ public class MainActivity extends Activity {
             web.loadUrl(url + (url.contains("?") ? "&" : "?") + "tv");
         }
         web.requestFocus();
+
+        updater = new Updater(this);
+        if (state == null) updater.check(true);   // quiet check on launch
     }
 
     @Override
@@ -128,5 +142,5 @@ public class MainActivity extends Activity {
 
     @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); web.saveState(out); }
     @Override protected void onPause() { super.onPause(); web.onPause(); }
-    @Override protected void onResume() { super.onResume(); web.onResume(); }
+    @Override protected void onResume() { super.onResume(); web.onResume(); if (updater != null) updater.onResume(); }
 }
