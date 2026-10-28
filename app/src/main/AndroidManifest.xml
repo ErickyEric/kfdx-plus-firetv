@@ -29,6 +29,11 @@
             android:exported="false"
             android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation|uiMode" />
+        <activity
+            android:name=".LivePlayerActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation|uiMode" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

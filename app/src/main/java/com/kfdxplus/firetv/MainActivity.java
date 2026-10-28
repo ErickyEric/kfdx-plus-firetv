@@ -21,6 +21,7 @@ import org.json.JSONObject;
 /** Opens the KFDX+ web app full screen in its TV layout; episodes play in the native full-screen player. */
 public class MainActivity extends Activity {
     private static final int PLAY = 7;
+    private static final int LIVE = 8;
     private WebView web;
     private FrameLayout root;
     private View fullView;
@@ -38,7 +39,7 @@ public class MainActivity extends Activity {
         " var p=prog[e.id],r=(p&&p.t>20&&p.d&&p.t<p.d-30)?p.t*1000:0;" +
         " KFDXNative.play(JSON.stringify({items:items,resumeMs:r}));};" +
         "window.__kfdxSave=function(id,t,d){prog[id]={t:t,d:d,at:Date.now()};store.set(prog);};" +
-        "window.__kfdxRefresh=function(){var a=document.activeElement,sel=a&&a.dataset&&a.dataset.ep?'[data-ep=\"'+a.dataset.ep+'\"]':null;" +
+        "window.__kfdxRefresh=function(){var lv=document.getElementById('livev');if(lv&&!lv.hidden){var w=document.getElementById('lwatch');if(w)focusEl(w);return;}var a=document.activeElement,sel=a&&a.dataset&&a.dataset.ep?'[data-ep=\"'+a.dataset.ep+'\"]':null;" +
         " if(!document.getElementById('sheet').hidden&&openShow){showSheet(openShow.slug,false);}else{render();}" +
         " var el=(sel&&document.querySelector((document.getElementById('sheet').hidden?'':'#sheet ')+sel))||document.querySelector('[data-ep]');" +
         " if(el&&typeof focusEl==='function')focusEl(el);};" +
@@ -54,6 +55,13 @@ public class MainActivity extends Activity {
     private Updater updater;
 
     public class Bridge {
+        @JavascriptInterface public void playLive(final String cfg) {
+            runOnUiThread(() -> {
+                Intent i = new Intent(MainActivity.this, LivePlayerActivity.class);
+                i.putExtra("cfg", cfg);
+                startActivityForResult(i, LIVE);
+            });
+        }
         @JavascriptInterface public void checkUpdate() { runOnUiThread(() -> updater.check(false)); }
         @JavascriptInterface public String version() { return String.valueOf(Updater.currentBuild()); }
         @JavascriptInterface public void play(final String cfg) {
@@ -113,6 +121,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == LIVE) {   // back from live TV: land on the Watch Live button again
+            web.evaluateJavascript("(function(){var w=document.getElementById('lwatch');if(w&&typeof focusEl==='function'){w.textContent='Watch Live';focusEl(w);}})();", null);
+            web.requestFocus();
+            return;
+        }
         if (requestCode != PLAY) return;
         StringBuilder js = new StringBuilder("(function(){if(!window.__kfdxSave)return;");
         try {
