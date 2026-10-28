@@ -53,6 +53,7 @@ public class MainActivity extends Activity {
         "})();";
 
     private Updater updater;
+    private LiveController live;
 
     public class Bridge {
         @JavascriptInterface public void playLive(final String cfg) {
@@ -62,6 +63,11 @@ public class MainActivity extends Activity {
                 startActivityForResult(i, LIVE);
             });
         }
+        // Live page: small player on the page, Select for full screen
+        @JavascriptInterface public void liveStart(final String cfg) { runOnUiThread(() -> { try { live.start(new JSONObject(cfg)); } catch (Exception ignored) { } }); }
+        @JavascriptInterface public void liveMove(final String rect) { runOnUiThread(() -> { try { live.move(new JSONObject(rect)); } catch (Exception ignored) { } }); }
+        @JavascriptInterface public void liveFull() { runOnUiThread(() -> live.setFull(true)); }
+        @JavascriptInterface public void liveStop() { runOnUiThread(() -> live.stop()); }
         @JavascriptInterface public void checkUpdate() { runOnUiThread(() -> updater.check(false)); }
         @JavascriptInterface public String version() { return String.valueOf(Updater.currentBuild()); }
         @JavascriptInterface public void play(final String cfg) {
@@ -93,7 +99,7 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(new Bridge(), "KFDXNative");
 
         web.setWebViewClient(new WebViewClient() {
-            @Override public void onPageFinished(WebView v, String url) { v.evaluateJavascript(HOOK, null); }
+            @Override public void onPageFinished(WebView v, String url) { if (live != null) live.stop(); v.evaluateJavascript(HOOK, null); }
         });
         chrome = new WebChromeClient() {
             @Override public void onShowCustomView(View view, CustomViewCallback cb) {
@@ -114,6 +120,7 @@ public class MainActivity extends Activity {
         }
         web.requestFocus();
 
+        live = new LiveController(this, root, web);
         updater = new Updater(this);
         if (state == null) updater.check(true);   // quiet check on launch
     }
@@ -144,6 +151,12 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (live != null && live.handleKey(event)) return true;   // full-screen live TV gets the remote
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         // Back closes the show page first (the web app keeps it in its history), then exits.
         if (keyCode == KeyEvent.KEYCODE_BACK) {
@@ -154,6 +167,7 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); web.saveState(out); }
-    @Override protected void onPause() { super.onPause(); web.onPause(); }
-    @Override protected void onResume() { super.onResume(); web.onResume(); if (updater != null) updater.onResume(); }
+    @Override protected void onPause() { super.onPause(); web.onPause(); if (live != null) live.pause(); }
+    @Override protected void onDestroy() { super.onDestroy(); if (live != null) live.stop(); }
+    @Override protected void onResume() { super.onResume(); web.onResume(); if (updater != null) updater.onResume(); if (live != null && live.isActive()) live.resume(); }
 }
