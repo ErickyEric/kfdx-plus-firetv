@@ -81,6 +81,7 @@ public class LiveController {
         full = false;
         applyLayout();
         retries = 0;
+        web.requestFocus();
         String url = cfg.optString("url", "");
         if (url.isEmpty()) refreshAndPlay(); else play(url);
         ui.removeCallbacks(tick);
@@ -94,6 +95,7 @@ public class LiveController {
         full = f;
         applyLayout();
         if (f) {
+            box.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
             view.setUseController(true);
             view.setFocusable(true);
             view.requestFocus();
@@ -102,6 +104,7 @@ public class LiveController {
             view.hideController();
             view.setUseController(false);
             view.setFocusable(false);
+            box.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
             web.requestFocus();
             web.evaluateJavascript("(function(){var b=document.getElementById('lbox');if(b&&typeof focusEl==='function')focusEl(b);})();", null);
         }
@@ -120,7 +123,14 @@ public class LiveController {
 
     /** Keys while full screen go to the player; Back shrinks back to the box. */
     public boolean handleKey(KeyEvent e) {
-        if (player == null || !full) return false;
+        if (player == null) return false;
+        if (!full) {
+            int k = e.getKeyCode();
+            boolean select = k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER || k == KeyEvent.KEYCODE_NUMPAD_ENTER;
+            if (select && !web.hasFocus()) { if (e.getAction() == KeyEvent.ACTION_UP) setFull(true); return true; }
+            if (!web.hasFocus()) web.requestFocus();
+            return false;
+        }
         int k = e.getKeyCode();
         if (k == KeyEvent.KEYCODE_BACK || k == KeyEvent.KEYCODE_ESCAPE) {
             if (e.getAction() == KeyEvent.ACTION_UP) {
@@ -137,6 +147,8 @@ public class LiveController {
     private void build() {
         box = new FrameLayout(a);
         box.setBackgroundColor(Color.BLACK);
+        box.setFocusable(false);
+        box.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);   // small mode: remote stays on the page
         view = new PlayerView(a);
         view.setUseController(false);
         view.setFocusable(false);
@@ -218,7 +230,13 @@ public class LiveController {
     }
 
     private void readRect(JSONObject r) {
-        double dpr = r.optDouble("dpr", a.getResources().getDisplayMetrics().density);
+        // How many screen pixels one page pixel takes up: measure it (WebView width ÷ page width)
+        // instead of trusting devicePixelRatio, which doesn't always match how the TV scales the page.
+        double scale = r.optDouble("dpr", a.getResources().getDisplayMetrics().density);
+        double vw = r.optDouble("vw", 0);
+        if (vw > 0 && web.getWidth() > 0) scale = web.getWidth() / vw;
+        else { @SuppressWarnings("deprecation") float s = web.getScale(); if (s > 0) scale = s; }   // older page: ask the WebView
+        double dpr = scale;
         int[] loc = new int[2];
         web.getLocationInWindow(loc);
         rx = (int) Math.round(r.optDouble("x", 0) * dpr) + loc[0];
